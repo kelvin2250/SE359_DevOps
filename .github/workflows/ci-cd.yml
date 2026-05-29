@@ -21,6 +21,7 @@ permissions:
 
 env:
   REGISTRY: ghcr.io
+  APP_DIR: blog-app
 
 jobs:
   test:
@@ -36,14 +37,14 @@ jobs:
         with:
           python-version: "3.11"
           cache: pip
-          cache-dependency-path: backend/requirements.txt
+          cache-dependency-path: blog-app/backend/requirements.txt
 
       - name: Install dependencies
-        working-directory: backend
+        working-directory: blog-app/backend
         run: pip install -r requirements.txt
 
       - name: Run unit tests
-        working-directory: backend
+        working-directory: blog-app/backend
         env:
           DATABASE_URL: sqlite:///./test.db
         run: pytest -v --junitxml=pytest-report.xml
@@ -52,7 +53,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: pytest-report
-          path: backend/pytest-report.xml
+          path: blog-app/backend/pytest-report.xml
 
   filesystem-scan:
     name: Trivy filesystem scan
@@ -67,7 +68,7 @@ jobs:
         uses: aquasecurity/trivy-action@master
         with:
           scan-type: fs
-          scan-ref: .
+          scan-ref: blog-app
           format: table
           output: trivy-fs-report.txt
           severity: HIGH,CRITICAL
@@ -103,8 +104,8 @@ jobs:
           args: >
             -Dsonar.projectKey=${{ env.SONAR_PROJECT_KEY }}
             -Dsonar.organization=${{ env.SONAR_ORGANIZATION }}
-            -Dsonar.sources=backend,frontend
-            -Dsonar.tests=backend
+            -Dsonar.sources=blog-app/backend,blog-app/frontend
+            -Dsonar.tests=blog-app/backend
             -Dsonar.python.version=3.11
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
@@ -135,7 +136,7 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       - name: Build backend image
-        run: docker build -t "$BACKEND_IMAGE:ci" ./backend
+        run: docker build -t "$BACKEND_IMAGE:ci" ./blog-app/backend
 
       - name: Scan backend image
         uses: aquasecurity/trivy-action@master
@@ -148,7 +149,7 @@ jobs:
           exit-code: "0"
 
       - name: Build frontend image
-        run: docker build -t "$FRONTEND_IMAGE:ci" ./frontend
+        run: docker build -t "$FRONTEND_IMAGE:ci" ./blog-app/frontend
 
       - name: Scan frontend image
         uses: aquasecurity/trivy-action@master
@@ -206,4 +207,4 @@ jobs:
         run: |
           echo "AWS/EKS is intentionally left for you."
           echo "After you create the cluster and configure kubeconfig, deploy with:"
-          echo "kubectl apply -f k8s/"
+          echo "kubectl apply -f blog-app/k8s/"
