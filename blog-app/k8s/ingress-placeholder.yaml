@@ -1,0 +1,21 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: blog-app
+  namespace: blog-app
+  annotations:
+    # Add your cloud/load-balancer ingress annotations here.
+    # Example for AWS ALB is intentionally omitted so you can do the AWS part yourself.
+    kubernetes.io/ingress.class: nginx
+spec:
+  rules:
+    - host: blog.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: frontend
+                port:
+                  number: 80
