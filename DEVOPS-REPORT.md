@@ -1,11 +1,3 @@
-# Báo Cáo Đồ Án DevOps Cuối Kỳ - Hệ Thống MiniBlog (InkNotes)
-
-> **Môn học:** SE359 - DevOps  
-> **Sinh viên thực hiện:** [Tên Sinh Viên]  
-> **Đề tài:** Xây dựng pipeline DevSecOps và triển khai GitOps cho ứng dụng FastAPI + PostgreSQL + Nginx  
-
----
-
 ## 1. Tổng Quan Dự Án & Kiến Trúc Hệ Thống
 
 Dự án **InkNotes** là một ứng dụng MiniBlog cơ bản cho phép người dùng thực hiện các thao tác CRUD (Tạo, Đọc, Cập nhật, Xóa) bài viết. Hệ thống được thiết kế theo kiến trúc 3 lớp (3-tier architecture):
@@ -28,10 +20,130 @@ graph TD
 | **Backend API Docs** | `localhost:8002/docs` | `localhost:8003/docs` (sau port-forward) | ClusterIP nội bộ | Swagger UI |
 | **PostgreSQL** | Nội bộ (không expose host) | ClusterIP nội bộ | ClusterIP nội bộ | Chỉ backend mới gọi được |
 | **Prometheus** | `localhost:9090` | `localhost:9090` (Docker Compose riêng) | ClusterIP nội bộ | Scrape backend `/metrics` |
-| **Grafana** | `localhost:3000` (admin/admin) | `localhost:3000` (Docker Compose riêng) | ClusterIP nội bộ | Dashboard metrics |
+| **Grafana** | `localhost:3030` (admin/admin) | `localhost:3030` (Docker Compose riêng) | ClusterIP nội bộ | Dashboard metrics |
 | **ArgoCD UI** | — | `localhost:8083` (port-forward: `kubectl port-forward svc/argocd-server -n argocd 8083:443`) | ClusterIP nội bộ | GitOps dashboard |
 
 > **Lưu ý:** Port của Docker Compose và Kind có thể khác nhau để tránh xung đột khi chạy đồng thời.
+
+---
+
+## 📌 Hướng Dẫn Vận Hành: Các Lệnh Cần Chạy Để Truy Cập
+
+> ⚡ **Bạn CHỈ cần chọn 1 trong 2 cách:** Docker Compose (đơn giản) **hoặc** K8s (nâng cao). Không cần chạy cả 2.
+
+```mermaid
+flowchart TD
+    A[Bạn muốn chạy app] --> B{Chọn môi trường}
+    B -->|Đơn giản, nhanh| C[Docker Compose]
+    B -->|Chuyên nghiệp, K8s| D[Kubernetes Kind]
+    C --> E[Có thể thêm Monitoring<br/>Prometheus + Grafana]
+    D --> F[Có thể thêm ArgoCD<br/>GitOps tự động]
+    D --> G[Có thể thêm Monitoring<br/>(chạy riêng Docker Compose)]
+```
+
+### A. Cách 1: Docker Compose — Chạy App + Monitoring (Song song)
+
+**Tất cả trong 1 cụm:** App + Monitoring chạy song song qua Docker Compose.
+
+```bash
+cd blog-app
+
+# 🚀 Bước 1: Khởi động App (backend + frontend + postgres)
+docker compose up --build -d
+
+# 🚀 Bước 2: Khởi động Monitoring (Prometheus + Grafana)
+# Chạy song song với app, không ảnh hưởng gì nhau
+docker compose -f monitoring/docker-compose.monitoring.yml up -d
+
+# ✅ Truy cập ngay:
+# Frontend:    http://localhost:8080
+# Backend API: http://localhost:8002/docs
+# Prometheus:  http://localhost:9090
+# Grafana:     http://localhost:3030 (admin/admin)
+```
+
+### B. Cách 2: Kubernetes (Kind) — Chạy App + ArgoCD + Monitoring
+
+**App trên K8s, Monitoring trên Docker (chạy song song).**
+
+#### Terminal 1: Cluster + Deploy
+
+```bash
+# 1. Tạo Kind cluster (chạy 1 lần)
+kind create cluster --config blog-app/k8s/kind-config.yaml
+
+# 2. Build image + load vào Kind
+cd blog-app
+docker build -t miniblog-backend:local ./backend
+docker build -t miniblog-frontend:local ./frontend
+kind load docker-image miniblog-backend:local --name miniblog
+kind load docker-image miniblog-frontend:local --name miniblog
+
+# 3. Deploy app lên K8s
+helm install miniblog helm/miniblog/ -f helm/miniblog/values-dev.yaml -n blog-app --create-namespace
+
+# 4. Monitoring — chạy song song trên Docker (cùng lúc với K8s)
+docker compose -f monitoring/docker-compose.monitoring.yml up -d
+```
+
+#### Terminal 2: Port-forward (chạy riêng, giữ nguyên terminal này)
+
+```bash
+# Backend (ClusterIP cần port-forward mới truy cập được)
+kubectl port-forward -n blog-app svc/miniblog-backend 8003:8000
+```
+
+#### Terminal 3 (tùy chọn): Cài ArgoCD
+
+```bash
+kubectl create namespace argocd
+kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+kubectl port-forward svc/argocd-server -n argocd 8083:443
+
+# Ứng dụng GitOps
+kubectl apply -f blog-app/gitops/application.yaml
+```
+
+**Kết quả — tất cả đều chạy đồng thời:**
+
+| Cổng | Dịch vụ | Chạy trên |
+|:----:|---------|-----------|
+| `8081` | **Frontend** (NodePort Kind) | K8s |
+| `8003` | **Backend** (sau port-forward) | K8s |
+| `9090` | **Prometheus** | Docker (song song) |
+| `3030` | **Grafana** | Docker (song song) |
+| `8083` | **ArgoCD UI** (sau port-forward) | K8s |
+
+### C. Cheat Sheet: Tóm Tắt Nhanh
+
+| Bạn muốn | Môi trường | Lệnh | Truy cập |
+|---------|-----------|------|----------|
+| **Chạy app + monitor** | Docker Compose | `docker compose up -d` + `docker compose -f monitoring/... up -d` | http://localhost:8080 |
+| **Chạy app K8s** | Kind | `kind create cluster` → `helm install` | http://localhost:8081 |
+| **Xem API docs** | Cả 2 | `kubectl port-forward ... 8003:8000` (nếu K8s) | http://localhost:8003/docs |
+| **Xem metrics** | Cả 2 | `curl localhost:8002/metrics` (Docker) hoặc `8003/metrics` (K8s) | — |
+| **Xem dashboard** | Docker | `docker compose -f monitoring/... up -d` | http://localhost:3030 |
+| **GitOps tự động** | K8s | `kubectl apply -f gitops/application.yaml` | https://localhost:8083 |
+
+### D. Deploy lên AWS EKS (Production — chỉ khi có tài khoản AWS)
+
+```bash
+# Tạo cluster EKS (15-20 phút)
+eksctl create cluster --name miniblog-cluster --region ap-southeast-1 \
+  --nodegroup-name standard-workers --node-type t3.small \
+  --nodes 2 --nodes-min 1 --nodes-max 3 --managed
+
+# Deploy app
+aws eks update-kubeconfig --region ap-southeast-1 --name miniblog-cluster
+helm install miniblog helm/miniblog/ -f helm/miniblog/values-prod.yaml -n blog-app --create-namespace
+
+# Lấy URL
+kubectl get svc -n blog-app
+# EXTERNAL-IP LoadBalancer URL
+
+# Xóa cluster khi xong (tránh tốn phí!)
+# eksctl delete cluster --name miniblog-cluster --region ap-southeast-1
+```
     Ingress -->|Forward| FE_Svc[Frontend Service: Port 80]
     FE_Svc -->|Load Balance| FE_Pods[Frontend Pods: Nginx Port 8080]
     FE_Pods -->|Proxy /api/*| BE_Svc[Backend Service: Port 8000]
@@ -169,7 +281,7 @@ scrape_configs:
   ```bash
   docker compose -f monitoring/docker-compose.monitoring.yml up -d
   # Prometheus: http://localhost:9090
-  # Grafana:    http://localhost:3000 (user: admin, password: admin)
+  # Grafana:    http://localhost:3030 (user: admin, password: admin)
   ```
 * **Tải dữ liệu test lên hệ thống (Cú pháp curl tạo bài viết):**
   ```bash
@@ -259,26 +371,20 @@ spec:
 ### 6.3 Các Bước Thực Thi Deploy & Cleanup:
 * **Bước 1: Khởi tạo EKS Cluster:** (Mất khoảng 15-20 phút để AWS setup cluster tự động gồm 2 worker nodes)
   ```bash
-  eksctl create cluster \
-    --name miniblog-cluster \
-    --region ap-southeast-1 \
-    --nodegroup-name standard-workers \
-    --node-type t3.small \
-    --nodes 2 \
-    --nodes-min 1 \
-    --nodes-max 3 \
-    --managed
+eksctl create cluster \
+  --name miniblog-cloud \
+  --region ap-southeast-1 \
+  --node-type t3.medium \
+  --nodes 1 \
+  --managed
   ```
 * **Bước 2: Deploy ứng dụng lên EKS bằng Helm:**
   ```bash
-  # Cấu hình kubeconfig local trỏ tới EKS mới tạo
-  aws eks update-kubeconfig --region ap-southeast-1 --name miniblog-cluster
+# Di chuyển vào thư mục code chính
+cd /d/SubjectSchool/DevopsFinal/Devops-MiniBlog/SE359-DevOps/blog-app
 
-  # Tạo namespace
-  kubectl create namespace blog-app
-
-  # Cài đặt Helm release với production values
-  MSYS_NO_PATHCONV=1 helm install miniblog ./helm/miniblog/ -f ./helm/miniblog/values-prod.yaml -n blog-app
+# Triển khai Helm release với production values
+MSYS_NO_PATHCONV=1 helm install miniblog ./helm/miniblog/ -f ./helm/miniblog/values-prod.yaml -n blog-app
   ```
 * **Bước 3: Lấy Public URL truy cập web từ AWS:**
   ```bash
