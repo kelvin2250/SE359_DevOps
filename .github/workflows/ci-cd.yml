@@ -116,6 +116,7 @@ jobs:
           framework: kubernetes
           output_format: cli
           soft_fail: false
+          config_file: blog-app/.checkov.yml
 
       - name: Run Checkov on Docker Compose
         uses: bridgecrewio/checkov-action@master
@@ -124,6 +125,7 @@ jobs:
           framework: docker-compose
           output_format: cli
           soft_fail: false
+          config_file: blog-app/.checkov.yml
 
   sonarcloud:
     name: SonarCloud analysis

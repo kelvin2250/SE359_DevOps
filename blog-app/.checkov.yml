@@ -1,0 +1,9 @@
+# Checkov configuration
+# See: https://www.checkov.io/configuration/
+
+# Skip các check không phù hợp với project này:
+# - CKV_K8S_14: Image tag dùng :latest (placeholder, sẽ được CI thay thế)
+# - CKV_K8S_43: Image digest (placeholder, chưa có digest cụ thể)
+skip-check:
+  - CKV_K8S_14
+  - CKV_K8S_43
