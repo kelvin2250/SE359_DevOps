@@ -1,0 +1,22 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: miniblog
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/kelvin2250/SE359_DevOps
+    targetRevision: main
+    path: blog-app/helm/miniblog
+    helm:
+      valueFiles:
+        - values-prod.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: blog-app
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    createNamespace: true

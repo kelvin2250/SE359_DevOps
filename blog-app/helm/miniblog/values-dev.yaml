@@ -30,6 +30,7 @@ frontend:
     pullPolicy: IfNotPresent
   serviceType: NodePort
   nodePort: 30080
+  runAsRoot: false
   resources:
     requests:
       cpu: "25m"
@@ -39,8 +40,10 @@ frontend:
       memory: "64Mi"
 
 postgresql:
-  storage:
-    size: 1Gi
+  persistence:
+    enabled: false
+  securityContext:
+    enabled: false
   resources:
     requests:
       cpu: "50m"
@@ -48,6 +51,9 @@ postgresql:
     limits:
       cpu: "200m"
       memory: "256Mi"
+
+networkPolicy:
+  enabled: false
 
 ingress:
   enabled: false

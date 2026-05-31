@@ -15,7 +15,7 @@ on:
         options: ["false", "true"]
 
 permissions:
-  contents: read
+  contents: write
   packages: write
   security-events: write
 
@@ -265,6 +265,30 @@ jobs:
           docker tag "$FRONTEND_IMAGE:ci" "$FRONTEND_IMAGE:latest"
           docker push "$FRONTEND_IMAGE:${GITHUB_SHA}"
           docker push "$FRONTEND_IMAGE:latest"
+
+      - name: Update Helm values image tag and push changes
+        if: github.event_name == 'push'
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          
+          OWNER="${GITHUB_REPOSITORY_OWNER,,}"
+          REPO="${GITHUB_REPOSITORY#*/}"
+          REPO="${REPO,,}"
+          
+          # Update repository fields and image tags using yq
+          yq -i ".backend.image.repository = \"ghcr.io/${OWNER}/${REPO}-backend\"" blog-app/helm/miniblog/values.yaml
+          yq -i ".backend.image.tag = \"${{ github.sha }}\"" blog-app/helm/miniblog/values.yaml
+          yq -i ".frontend.image.repository = \"ghcr.io/${OWNER}/${REPO}-frontend\"" blog-app/helm/miniblog/values.yaml
+          yq -i ".frontend.image.tag = \"${{ github.sha }}\"" blog-app/helm/miniblog/values.yaml
+          
+          if ! git diff --quiet blog-app/helm/miniblog/values.yaml; then
+            git add blog-app/helm/miniblog/values.yaml
+            git commit -m "[skip ci] update image tags to ${{ github.sha }}"
+            git push
+          else
+            echo "No changes in values.yaml"
+          fi
 
   deploy-placeholder:
     name: AWS/EKS deploy placeholder

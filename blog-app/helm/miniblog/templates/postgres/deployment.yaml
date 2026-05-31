@@ -19,6 +19,7 @@ spec:
         app.kubernetes.io/component: postgresql
     spec:
       automountServiceAccountToken: false
+      {{- if .Values.postgresql.securityContext.enabled }}
       securityContext:
         runAsNonRoot: true
         runAsUser: {{ .Values.postgresql.securityContext.runAsUser }}
@@ -26,6 +27,7 @@ spec:
         fsGroup: {{ .Values.postgresql.securityContext.fsGroup }}
         seccompProfile:
           type: RuntimeDefault
+      {{- end }}
       containers:
         - name: postgresql
           image: "{{ .Values.postgresql.image.repository }}:{{ .Values.postgresql.image.tag }}"
@@ -35,13 +37,7 @@ spec:
           envFrom:
             - secretRef:
                 name: {{ include "miniblog.postgresql.fullname" . }}
-          resources:
-            requests:
-              cpu: {{ .Values.postgresql.resources.requests.cpu }}
-              memory: {{ .Values.postgresql.resources.requests.memory }}
-            limits:
-              cpu: {{ .Values.postgresql.resources.limits.cpu }}
-              memory: {{ .Values.postgresql.resources.limits.memory }}
+          {{- if .Values.postgresql.securityContext.enabled }}
           securityContext:
             allowPrivilegeEscalation: false
             runAsNonRoot: true
@@ -50,7 +46,16 @@ spec:
             capabilities:
               drop:
                 - ALL
+          {{- end }}
           readinessProbe:
+            exec:
+              command:
+                - pg_isready
+                - -U
+                - {{ .Values.postgresql.secret.user }}
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          livenessProbe:
             exec:
               command:
                 - pg_isready
@@ -58,18 +63,14 @@ spec:
                 - {{ .Values.postgresql.secret.user }}
             initialDelaySeconds: 10
             periodSeconds: 10
-          livenessProbe:
-            exec:
-              command:
-                - pg_isready
-                - -U
-                - {{ .Values.postgresql.secret.user }}
-            initialDelaySeconds: 20
-            periodSeconds: 20
           volumeMounts:
             - name: postgres-data
               mountPath: /var/lib/postgresql/data
       volumes:
         - name: postgres-data
+          {{- if .Values.postgresql.persistence.enabled }}
           persistentVolumeClaim:
             claimName: {{ include "miniblog.postgresql.fullname" . }}-data
+          {{- else }}
+          emptyDir: {}
+          {{- end }}

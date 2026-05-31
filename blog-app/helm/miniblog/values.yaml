@@ -23,7 +23,8 @@ backend:
   containerPort: 8000
   servicePort: 8000
   env:
-    DATABASE_URL: postgresql://postgres:postgres@{{ .Release.Name }}-postgresql:5432/blogdb
+    # DATABASE_URL được tạo trong template backend/deployment.yaml
+    # để có thể dùng .Release.Name động
   resources:
     requests:
       cpu: "100m"
@@ -49,12 +50,13 @@ backend:
 frontend:
   enabled: true
   name: frontend
+  runAsRoot: false
   image:
     repository: ghcr.io/OWNER/REPOSITORY-frontend
     tag: latest
     pullPolicy: Always
   replicas: 2
-  containerPort: 80
+  containerPort: 8080
   servicePort: 80
   serviceType: ClusterIP
   nodePort: 30080
@@ -82,6 +84,8 @@ frontend:
 # --- PostgreSQL ---
 postgresql:
   enabled: true
+  persistence:
+    enabled: true
   image:
     repository: postgres
     tag: 16-alpine
@@ -102,6 +106,7 @@ postgresql:
       cpu: "500m"
       memory: "512Mi"
   securityContext:
+    enabled: true
     runAsUser: 999
     runAsGroup: 999
     fsGroup: 999

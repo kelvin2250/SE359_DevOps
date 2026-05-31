@@ -1,5 +1,7 @@
 # InkNotes - Blog App
 
+![CI](https://github.com/kelvin2250/SE359_DevOps/actions/workflows/ci-cd.yml/badge.svg)
+
 A clean blog application built with FastAPI, PostgreSQL, Docker, and vanilla HTML/CSS/JS.
 
 ## Tech Stack

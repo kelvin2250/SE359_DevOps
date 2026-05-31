@@ -35,6 +35,8 @@ spec:
           env:
             - name: DATABASE_URL
               value: "postgresql://{{ .Values.postgresql.secret.user }}:{{ .Values.postgresql.secret.password }}@{{ include "miniblog.postgresql.fullname" . }}:{{ .Values.postgresql.port }}/{{ .Values.postgresql.secret.database }}"
+            - name: PYTHONUNBUFFERED
+              value: "1"
           resources:
             requests:
               cpu: {{ .Values.backend.resources.requests.cpu }}
