@@ -9,15 +9,29 @@
 ## 1. Tổng Quan Dự Án & Kiến Trúc Hệ Thống
 
 Dự án **InkNotes** là một ứng dụng MiniBlog cơ bản cho phép người dùng thực hiện các thao tác CRUD (Tạo, Đọc, Cập nhật, Xóa) bài viết. Hệ thống được thiết kế theo kiến trúc 3 lớp (3-tier architecture):
-1. **Frontend (Nginx + Vanilla JS):** Đóng vai trò là Web Server phục vụ giao diện tĩnh và đồng thời làm Reverse Proxy chuyển tiếp các request API `/api/*` tới backend. Chạy non-root trên cổng `8080`.
-2. **Backend (FastAPI):** Xử lý logic nghiệp vụ, cung cấp các RESTful API và tích hợp sẵn Prometheus metrics exporter qua endpoint `/metrics`.
-3. **Database (PostgreSQL):** Lưu trữ dữ liệu bài viết.
+1. **Frontend (Nginx + Vanilla JS):** Đóng vai trò là Web Server phục vụ giao diện tĩnh và đồng thời làm Reverse Proxy chuyển tiếp các request API `/api/*` tới backend. Chạy non-root trên cổng `80` container (map ra host `8080` qua Docker Compose hoặc `8081` qua Kind NodePort).
+2. **Backend (FastAPI):** Xử lý logic nghiệp vụ, cung cấp các RESTful API tại port `8000` container (map ra host `8002` qua Docker Compose, hoặc ClusterIP nội bộ trên K8s) và tích hợp sẵn Prometheus metrics exporter qua endpoint `/metrics`.
+3. **Database (PostgreSQL):** Lưu trữ dữ liệu bài viết, chạy port `5432` nội bộ (không expose ra host).
 
 ### Sơ đồ Kiến trúc Triển khai trên Kubernetes (Kind/EKS)
 
 ```mermaid
 graph TD
     Client[Client Browser] -->|Port 80/8081| Ingress[Ingress Controller / NodePort]
+
+### Bảng Ánh Xạ Cổng (Port Mapping)
+
+| Thành phần | Docker Compose | Kubernetes (Kind Dev) | Kubernetes (EKS Prod) | Ghi chú |
+|-----------|---------------|----------------------|----------------------|---------|
+| **Frontend (Nginx)** | `localhost:8080` → container `:80` | `localhost:8081` → NodePort `:30080` → container `:80` | LoadBalancer URL → container `:80` | Giao diện web blog |
+| **Backend (FastAPI)** | `localhost:8002` → container `:8000` | ClusterIP nội bộ (dùng `kubectl port-forward svc/miniblog-backend 8003:8000`) | ClusterIP nội bộ | API + Swagger docs tại `/docs` |
+| **Backend API Docs** | `localhost:8002/docs` | `localhost:8003/docs` (sau port-forward) | ClusterIP nội bộ | Swagger UI |
+| **PostgreSQL** | Nội bộ (không expose host) | ClusterIP nội bộ | ClusterIP nội bộ | Chỉ backend mới gọi được |
+| **Prometheus** | `localhost:9090` | `localhost:9090` (Docker Compose riêng) | ClusterIP nội bộ | Scrape backend `/metrics` |
+| **Grafana** | `localhost:3000` (admin/admin) | `localhost:3000` (Docker Compose riêng) | ClusterIP nội bộ | Dashboard metrics |
+| **ArgoCD UI** | — | `localhost:8083` (port-forward: `kubectl port-forward svc/argocd-server -n argocd 8083:443`) | ClusterIP nội bộ | GitOps dashboard |
+
+> **Lưu ý:** Port của Docker Compose và Kind có thể khác nhau để tránh xung đột khi chạy đồng thời.
     Ingress -->|Forward| FE_Svc[Frontend Service: Port 80]
     FE_Svc -->|Load Balance| FE_Pods[Frontend Pods: Nginx Port 8080]
     FE_Pods -->|Proxy /api/*| BE_Svc[Backend Service: Port 8000]
@@ -154,6 +168,8 @@ scrape_configs:
 * **Khởi chạy Prometheus + Grafana:**
   ```bash
   docker compose -f monitoring/docker-compose.monitoring.yml up -d
+  # Prometheus: http://localhost:9090
+  # Grafana:    http://localhost:3000 (user: admin, password: admin)
   ```
 * **Tải dữ liệu test lên hệ thống (Cú pháp curl tạo bài viết):**
   ```bash
@@ -207,6 +223,7 @@ spec:
 * **Expose giao diện ArgoCD Web UI:**
   ```bash
   kubectl port-forward svc/argocd-server -n argocd 8083:443
+  # Truy cập: https://localhost:8083
   ```
 * **Lấy mật khẩu đăng nhập admin ban đầu:**
   ```bash
@@ -266,7 +283,9 @@ spec:
 * **Bước 3: Lấy Public URL truy cập web từ AWS:**
   ```bash
   kubectl get svc -n blog-app
-  # Cột EXTERNAL-IP của miniblog-frontend sẽ hiển thị DNS của AWS ELB để truy cập và chụp ảnh báo cáo
+  # Cột EXTERNAL-IP của miniblog-frontend sẽ hiển thị DNS của AWS ELB
+  # Ví dụ: http://xxxxx-xxxx.elb.ap-southeast-1.amazonaws.com
+  # Frontend: port 80 (HTTP), Backend: nội bộ qua ClusterIP
   ```
 * **Bước 4: Xóa Cluster để tránh phát sinh chi phí (Quan trọng cho tài khoản Free Tier):**
   ```bash
