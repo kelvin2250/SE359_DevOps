@@ -12,6 +12,7 @@ sed -i "s|ghcr.io/OWNER/REPOSITORY-frontend:latest|ghcr.io/<owner>/<repo>-fronte
 ```bash
 kubectl apply -f k8s/namespace.yaml
 kubectl apply -f k8s/postgres.yaml
+kubectl apply -f k8s/network-policy.yaml
 kubectl apply -f k8s/backend.yaml
 kubectl apply -f k8s/frontend.yaml
 ```
