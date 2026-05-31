@@ -1,0 +1,133 @@
+# ============================================
+# MiniBlog - Helm Default Values
+# ============================================
+# Cấu trúc: .Values.<component>.<setting>
+# Ghi đè bằng: helm install -f values-dev.yaml
+#              helm install --set backend.replicas=3
+# ============================================
+
+# --- Global settings (áp dụng cho tất cả component) ---
+global:
+  namespace: blog-app
+  environment: production
+
+# --- Backend ---
+backend:
+  enabled: true
+  name: backend
+  image:
+    repository: ghcr.io/OWNER/REPOSITORY-backend
+    tag: latest
+    pullPolicy: Always
+  replicas: 2
+  containerPort: 8000
+  servicePort: 8000
+  env:
+    DATABASE_URL: postgresql://postgres:postgres@{{ .Release.Name }}-postgresql:5432/blogdb
+  resources:
+    requests:
+      cpu: "100m"
+      memory: "128Mi"
+    limits:
+      cpu: "500m"
+      memory: "256Mi"
+  securityContext:
+    runAsUser: 1000
+    runAsGroup: 3000
+    fsGroup: 2000
+  probes:
+    readiness:
+      path: /health
+      initialDelaySeconds: 10
+      periodSeconds: 10
+    liveness:
+      path: /health
+      initialDelaySeconds: 20
+      periodSeconds: 20
+
+# --- Frontend ---
+frontend:
+  enabled: true
+  name: frontend
+  image:
+    repository: ghcr.io/OWNER/REPOSITORY-frontend
+    tag: latest
+    pullPolicy: Always
+  replicas: 2
+  containerPort: 80
+  servicePort: 80
+  serviceType: ClusterIP
+  nodePort: 30080
+  resources:
+    requests:
+      cpu: "50m"
+      memory: "64Mi"
+    limits:
+      cpu: "200m"
+      memory: "128Mi"
+  securityContext:
+    runAsUser: 101
+    runAsGroup: 101
+    fsGroup: 101
+  probes:
+    readiness:
+      path: /
+      initialDelaySeconds: 5
+      periodSeconds: 10
+    liveness:
+      path: /
+      initialDelaySeconds: 15
+      periodSeconds: 20
+
+# --- PostgreSQL ---
+postgresql:
+  enabled: true
+  image:
+    repository: postgres
+    tag: 16-alpine
+    pullPolicy: IfNotPresent
+  port: 5432
+  storage:
+    size: 5Gi
+    accessMode: ReadWriteOnce
+  secret:
+    user: postgres
+    password: postgres
+    database: blogdb
+  resources:
+    requests:
+      cpu: "100m"
+      memory: "256Mi"
+    limits:
+      cpu: "500m"
+      memory: "512Mi"
+  securityContext:
+    runAsUser: 999
+    runAsGroup: 999
+    fsGroup: 999
+
+# --- Network Policy ---
+networkPolicy:
+  enabled: true
+
+# --- Ingress ---
+ingress:
+  enabled: false
+  className: nginx
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "30"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
+    nginx.ingress.kubernetes.io/enable-cors: "true"
+  hosts:
+    - host: blog.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+          serviceName: frontend
+          servicePort: 80
+  tls: []
+  #  - secretName: blog-app-tls
+  #    hosts:
+  #      - blog.example.com

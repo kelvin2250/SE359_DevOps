@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "miniblog.postgresql.fullname" . }}-data
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    {{- include "miniblog.labels" . | nindent 4 }}
+    app.kubernetes.io/component: postgresql
+spec:
+  accessModes:
+    - {{ .Values.postgresql.storage.accessMode }}
+  resources:
+    requests:
+      storage: {{ .Values.postgresql.storage.size }}

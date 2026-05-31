@@ -1,0 +1,53 @@
+# ============================================
+# MiniBlog - Development Environment
+# ============================================
+# Dùng cho: helm install miniblog . -f values-dev.yaml
+# hoặc:     helm upgrade miniblog . -f values-dev.yaml
+# ============================================
+
+global:
+  environment: development
+
+backend:
+  replicas: 1
+  image:
+    repository: miniblog-backend
+    tag: local
+    pullPolicy: IfNotPresent
+  resources:
+    requests:
+      cpu: "50m"
+      memory: "64Mi"
+    limits:
+      cpu: "200m"
+      memory: "128Mi"
+
+frontend:
+  replicas: 1
+  image:
+    repository: miniblog-frontend
+    tag: local
+    pullPolicy: IfNotPresent
+  serviceType: NodePort
+  nodePort: 30080
+  resources:
+    requests:
+      cpu: "25m"
+      memory: "32Mi"
+    limits:
+      cpu: "100m"
+      memory: "64Mi"
+
+postgresql:
+  storage:
+    size: 1Gi
+  resources:
+    requests:
+      cpu: "50m"
+      memory: "128Mi"
+    limits:
+      cpu: "200m"
+      memory: "256Mi"
+
+ingress:
+  enabled: false

@@ -159,10 +159,38 @@ jobs:
         if: env.SONAR_TOKEN == '' || env.SONAR_PROJECT_KEY == '' || env.SONAR_ORGANIZATION == ''
         run: echo "SonarCloud variables are not fully configured. Skipping SonarCloud analysis."
 
+  helm-lint:
+    name: Helm chart lint
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: v3.16.1
+
+      - name: Lint Helm chart
+        run: helm lint blog-app/helm/miniblog/
+
+      - name: Render templates (dev)
+        run: |
+          echo "=== Render with dev values ==="
+          helm template test blog-app/helm/miniblog/ -f blog-app/helm/miniblog/values-dev.yaml > /dev/null
+          echo "✅ Dev template rendered successfully"
+
+      - name: Render templates (prod)
+        run: |
+          echo "=== Render with prod values ==="
+          helm template test blog-app/helm/miniblog/ -f blog-app/helm/miniblog/values-prod.yaml > /dev/null
+          echo "✅ Prod template rendered successfully"
+
   build-and-publish:
     name: Build, scan, and publish images
     runs-on: ubuntu-latest
-    needs: [test, filesystem-scan, hadolint, checkov]
+    needs: [test, filesystem-scan, hadolint, checkov, helm-lint]
 
     steps:
       - name: Checkout source
@@ -248,29 +276,32 @@ jobs:
       - name: Checkout source
         uses: actions/checkout@v4
 
-      - name: Replace image tags
+      - name: Replace image tags in Helm values
         run: |
           OWNER="${GITHUB_REPOSITORY_OWNER,,}"
           REPO="${GITHUB_REPOSITORY#*/}"
           REPO="${REPO,,}"
-          sed -i "s|ghcr.io/OWNER/REPOSITORY-backend:latest|ghcr.io/${OWNER}/${REPO}-backend:latest|g" blog-app/k8s/backend.yaml
-          sed -i "s|ghcr.io/OWNER/REPOSITORY-frontend:latest|ghcr.io/${OWNER}/${REPO}-frontend:latest|g" blog-app/k8s/frontend.yaml
+
+          # Update Helm values with correct image names
+          sed -i "s|repository: ghcr.io/OWNER/REPOSITORY-backend|repository: ghcr.io/${OWNER}/${REPO}-backend|g" blog-app/helm/miniblog/values.yaml
+          sed -i "s|repository: ghcr.io/OWNER/REPOSITORY-frontend|repository: ghcr.io/${OWNER}/${REPO}-frontend|g" blog-app/helm/miniblog/values.yaml
+          sed -i "s|tag: latest|tag: ${GITHUB_SHA}|g" blog-app/helm/miniblog/values.yaml
 
       - name: Show deploy instructions
         run: |
           echo "=========================================="
-          echo "  AWS/EKS Deploy (tự động)              "
+          echo "  AWS/EKS Deploy Instructions            "
           echo "=========================================="
           echo "1. Cấu hình kubeconfig cho cluster của bạn"
-          echo "2. Cài Nginx Ingress Controller:"
-          echo "   kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.10.1/deploy/static/provider/cloud/deploy.yaml"
           echo ""
-          echo "3. Deploy ứng dụng:"
-          echo "   kubectl apply -f blog-app/k8s/namespace.yaml"
-          echo "   kubectl apply -f blog-app/k8s/postgres.yaml"
-          echo "   kubectl apply -f blog-app/k8s/backend.yaml"
-          echo "   kubectl apply -f blog-app/k8s/frontend.yaml"
-          echo "   kubectl apply -f blog-app/k8s/ingress.yaml"
+          echo "2. Deploy với Helm (khuyên dùng):"
+          echo "   helm install miniblog blog-app/helm/miniblog/ -f blog-app/helm/miniblog/values-prod.yaml"
+          echo ""
+          echo "   Hoặc deploy với kubectl:"
+          echo "   kubectl apply -f blog-app/k8s/"
+          echo ""
+          echo "3. Cài Ingress Controller (nếu chưa có):"
+          echo "   kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.10.1/deploy/static/provider/cloud/deploy.yaml"
           echo ""
           echo "4. Trỏ domain → Load Balancer IP/URL"
           echo "=========================================="
