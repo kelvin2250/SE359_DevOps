@@ -47,6 +47,7 @@ spec:
       containers:
         - name: postgres
           image: postgres:16-alpine
+          imagePullPolicy: Always
           ports:
             - containerPort: 5432
           envFrom:
@@ -67,6 +68,22 @@ spec:
             capabilities:
               drop:
                 - ALL
+          readinessProbe:
+            exec:
+              command:
+                - pg_isready
+                - -U
+                - postgres
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            exec:
+              command:
+                - pg_isready
+                - -U
+                - postgres
+            initialDelaySeconds: 20
+            periodSeconds: 20
           volumeMounts:
             - name: postgres-data
               mountPath: /var/lib/postgresql/data
