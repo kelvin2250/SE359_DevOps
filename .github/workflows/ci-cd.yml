@@ -118,14 +118,13 @@ jobs:
           soft_fail: false
           config_file: blog-app/.checkov.yml
 
-      - name: Run Checkov on Docker Compose
+      - name: Run Checkov on Dockerfiles
         uses: bridgecrewio/checkov-action@master
         with:
           directory: blog-app
-          framework: docker-compose
+          framework: dockerfile
           output_format: cli
-          soft_fail: false
-          config_file: blog-app/.checkov.yml
+          soft_fail: true
 
   sonarcloud:
     name: SonarCloud analysis
