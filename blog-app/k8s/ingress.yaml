@@ -1,0 +1,66 @@
+# ============================================
+# Ingress - Nginx Ingress Controller
+# ============================================
+# Yêu cầu:
+#   1. Cài Nginx Ingress Controller vào cluster:
+#      kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.10.1/deploy/static/provider/cloud/deploy.yaml
+#
+#   2. Thay đổi host thành domain thật của bạn
+#
+#   3. (Tùy chọn) Thêm TLS certificate (cert-manager hoặc thủ công)
+# ============================================
+
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: blog-app
+  namespace: blog-app
+  annotations:
+    # --- Nginx Ingress Controller ---
+    kubernetes.io/ingress.class: nginx
+
+    # Giới hạn kích thước body (cho phép upload bài viết lớn)
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+
+    # Timeout cho backend API
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "30"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "60"
+
+    # Rewrite target (giữ nguyên path gốc)
+    nginx.ingress.kubernetes.io/rewrite-target: /
+
+    # --- CORS headers (nếu cần) ---
+    nginx.ingress.kubernetes.io/enable-cors: "true"
+    nginx.ingress.kubernetes.io/cors-allow-methods: "GET, POST, PUT, DELETE, OPTIONS"
+    nginx.ingress.kubernetes.io/cors-allow-headers: "Content-Type, Authorization"
+
+    # --- TLS via cert-manager (tự động cấp Let's Encrypt) ---
+    # Bỏ comment sau khi cài cert-manager:
+    # cert-manager.io/cluster-issuer: "letsencrypt-prod"
+
+spec:
+  # --- TLS Configuration ---
+  # Bỏ comment sau khi có domain và cert-manager:
+  # tls:
+  #   - hosts:
+  #       - blog.example.com
+  #     secretName: blog-app-tls
+
+  rules:
+    - host: blog.example.com  # ← Thay bằng domain của bạn
+      http:
+        paths:
+          # --- Frontend (SPA) ---
+          # Tất cả request gốc đều đến frontend Nginx
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: frontend
+                port:
+                  number: 80
+
+          # --- Backend API ---
+          # Frontend Nginx sẽ proxy /api/* → backend service
+          # (đã cấu hình trong frontend/nginx.conf)

@@ -3,3 +3,6 @@ __pycache__/
 .pytest_cache/
 *.py[cod]
 backend/test.db
+
+# Environment variables (contains secrets)
+.env

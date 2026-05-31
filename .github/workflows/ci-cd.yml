@@ -81,6 +81,50 @@ jobs:
           name: trivy-filesystem-report
           path: trivy-fs-report.txt
 
+  hadolint:
+    name: Hadolint - Dockerfile lint
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Lint backend Dockerfile
+        uses: hadolint/hadolint-action@v3
+        with:
+          dockerfile: blog-app/backend/Dockerfile
+          config: blog-app/.hadolint.yaml
+
+      - name: Lint frontend Dockerfile
+        uses: hadolint/hadolint-action@v3
+        with:
+          dockerfile: blog-app/frontend/Dockerfile
+          config: blog-app/.hadolint.yaml
+
+  checkov:
+    name: Checkov - IaC security scan
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Run Checkov on K8s manifests
+        uses: bridgecrewio/checkov-action@master
+        with:
+          directory: blog-app/k8s
+          framework: kubernetes
+          output_format: cli
+          soft_fail: false
+
+      - name: Run Checkov on Docker Compose
+        uses: bridgecrewio/checkov-action@master
+        with:
+          directory: blog-app
+          framework: docker-compose
+          output_format: cli
+          soft_fail: false
+
   sonarcloud:
     name: SonarCloud analysis
     runs-on: ubuntu-latest
@@ -117,7 +161,7 @@ jobs:
   build-and-publish:
     name: Build, scan, and publish images
     runs-on: ubuntu-latest
-    needs: [test, filesystem-scan]
+    needs: [test, filesystem-scan, hadolint, checkov]
 
     steps:
       - name: Checkout source
@@ -203,8 +247,29 @@ jobs:
       - name: Checkout source
         uses: actions/checkout@v4
 
-      - name: Show next AWS steps
+      - name: Replace image tags
         run: |
-          echo "AWS/EKS is intentionally left for you."
-          echo "After you create the cluster and configure kubeconfig, deploy with:"
-          echo "kubectl apply -f blog-app/k8s/"
+          OWNER="${GITHUB_REPOSITORY_OWNER,,}"
+          REPO="${GITHUB_REPOSITORY#*/}"
+          REPO="${REPO,,}"
+          sed -i "s|ghcr.io/OWNER/REPOSITORY-backend:latest|ghcr.io/${OWNER}/${REPO}-backend:latest|g" blog-app/k8s/backend.yaml
+          sed -i "s|ghcr.io/OWNER/REPOSITORY-frontend:latest|ghcr.io/${OWNER}/${REPO}-frontend:latest|g" blog-app/k8s/frontend.yaml
+
+      - name: Show deploy instructions
+        run: |
+          echo "=========================================="
+          echo "  AWS/EKS Deploy (tự động)              "
+          echo "=========================================="
+          echo "1. Cấu hình kubeconfig cho cluster của bạn"
+          echo "2. Cài Nginx Ingress Controller:"
+          echo "   kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.10.1/deploy/static/provider/cloud/deploy.yaml"
+          echo ""
+          echo "3. Deploy ứng dụng:"
+          echo "   kubectl apply -f blog-app/k8s/namespace.yaml"
+          echo "   kubectl apply -f blog-app/k8s/postgres.yaml"
+          echo "   kubectl apply -f blog-app/k8s/backend.yaml"
+          echo "   kubectl apply -f blog-app/k8s/frontend.yaml"
+          echo "   kubectl apply -f blog-app/k8s/ingress.yaml"
+          echo ""
+          echo "4. Trỏ domain → Load Balancer IP/URL"
+          echo "=========================================="

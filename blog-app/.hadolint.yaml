@@ -1,0 +1,9 @@
+# Hadolint configuration
+# See: https://github.com/hadolint/hadolint#configure
+
+ignored:
+  - DL3008   # Pin versions in apt-get (not needed for pip)
+  - DL3013   # Pin versions in pip (versions pinned in requirements.txt)
+  - DL3045   # COPY vs ADD distinction not critical here
+  - DL4006   # SHELL is already bash for PIP
+  - SC1091   # Shellcheck not applicable for Dockerfiles
