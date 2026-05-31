@@ -10,21 +10,20 @@
 global:
   namespace: blog-app
   environment: production
-
 # --- Backend ---
 backend:
   enabled: true
   name: backend
   image:
-    repository: ghcr.io/OWNER/REPOSITORY-backend
-    tag: latest
+    repository: ghcr.io/kelvin2250/se359_devops-backend
+    tag: fa3d46e9368fc9cdf70dc02c31bbad0f7a2a4756
     pullPolicy: Always
   replicas: 2
   containerPort: 8000
   servicePort: 8000
   env:
-    # DATABASE_URL được tạo trong template backend/deployment.yaml
-    # để có thể dùng .Release.Name động
+  # DATABASE_URL được tạo trong template backend/deployment.yaml
+  # để có thể dùng .Release.Name động
   resources:
     requests:
       cpu: "100m"
@@ -45,15 +44,14 @@ backend:
       path: /health
       initialDelaySeconds: 20
       periodSeconds: 20
-
 # --- Frontend ---
 frontend:
   enabled: true
   name: frontend
   runAsRoot: false
   image:
-    repository: ghcr.io/OWNER/REPOSITORY-frontend
-    tag: latest
+    repository: ghcr.io/kelvin2250/se359_devops-frontend
+    tag: fa3d46e9368fc9cdf70dc02c31bbad0f7a2a4756
     pullPolicy: Always
   replicas: 2
   containerPort: 8080
@@ -80,7 +78,6 @@ frontend:
       path: /
       initialDelaySeconds: 15
       periodSeconds: 20
-
 # --- PostgreSQL ---
 postgresql:
   enabled: true
@@ -110,11 +107,9 @@ postgresql:
     runAsUser: 999
     runAsGroup: 999
     fsGroup: 999
-
 # --- Network Policy ---
 networkPolicy:
   enabled: true
-
 # --- Ingress ---
 ingress:
   enabled: false
