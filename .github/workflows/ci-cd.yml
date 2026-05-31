@@ -6,13 +6,6 @@ on:
   pull_request:
     branches: ["main"]
   workflow_dispatch:
-    inputs:
-      deploy_to_kubernetes:
-        description: "Run the Kubernetes deploy placeholder after images are published"
-        required: false
-        default: "false"
-        type: choice
-        options: ["false", "true"]
 
 permissions:
   contents: write
@@ -289,43 +282,3 @@ jobs:
           else
             echo "No changes in values.yaml"
           fi
-
-  deploy-placeholder:
-    name: AWS/EKS deploy placeholder
-    runs-on: ubuntu-latest
-    needs: build-and-publish
-    if: github.event_name == 'workflow_dispatch' && inputs.deploy_to_kubernetes == 'true'
-
-    steps:
-      - name: Checkout source
-        uses: actions/checkout@v4
-
-      - name: Replace image tags in Helm values
-        run: |
-          OWNER="${GITHUB_REPOSITORY_OWNER,,}"
-          REPO="${GITHUB_REPOSITORY#*/}"
-          REPO="${REPO,,}"
-
-          # Update Helm values with correct image names
-          sed -i "s|repository: ghcr.io/OWNER/REPOSITORY-backend|repository: ghcr.io/${OWNER}/${REPO}-backend|g" blog-app/helm/miniblog/values.yaml
-          sed -i "s|repository: ghcr.io/OWNER/REPOSITORY-frontend|repository: ghcr.io/${OWNER}/${REPO}-frontend|g" blog-app/helm/miniblog/values.yaml
-          sed -i "s|tag: latest|tag: ${GITHUB_SHA}|g" blog-app/helm/miniblog/values.yaml
-
-      - name: Show deploy instructions
-        run: |
-          echo "=========================================="
-          echo "  AWS/EKS Deploy Instructions            "
-          echo "=========================================="
-          echo "1. Cấu hình kubeconfig cho cluster của bạn"
-          echo ""
-          echo "2. Deploy với Helm (khuyên dùng):"
-          echo "   helm install miniblog blog-app/helm/miniblog/ -f blog-app/helm/miniblog/values-prod.yaml"
-          echo ""
-          echo "   Hoặc deploy với kubectl:"
-          echo "   kubectl apply -f blog-app/k8s/"
-          echo ""
-          echo "3. Cài Ingress Controller (nếu chưa có):"
-          echo "   kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.10.1/deploy/static/provider/cloud/deploy.yaml"
-          echo ""
-          echo "4. Trỏ domain → Load Balancer IP/URL"
-          echo "=========================================="

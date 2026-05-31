@@ -13,7 +13,7 @@ A clean blog application built with FastAPI, PostgreSQL, Docker, and vanilla HTM
 | Frontend | HTML / CSS / Vanilla JS |
 | Container | Docker + Docker Compose |
 | CI/CD | GitHub Actions + GHCR + Trivy |
-| Deployment | Kubernetes manifests, AWS/EKS left for you |
+| Deployment | Kubernetes manifests, Helm chart |
 
 ## Project Structure
 
@@ -87,7 +87,7 @@ The GitHub Actions pipeline includes:
 4. Docker build for backend and frontend.
 5. Trivy image scans.
 6. Push images to GitHub Container Registry on `main`.
-7. Kubernetes deploy placeholder, with AWS/EKS intentionally left for you.
+7. Kubernetes deploy placeholder.
 
 See [docs/ci-cd-github-actions.md](docs/ci-cd-github-actions.md) for the full setup guide.
 
@@ -246,25 +246,6 @@ build-and-publish:
         password: ${{ secrets.GITHUB_TOKEN }}
 ```
 
-### AWS/EKS Placeholder
-
-The AWS deployment job is intentionally left as a placeholder:
-
-```yaml
-deploy-placeholder:
-  name: AWS/EKS deploy placeholder
-  runs-on: ubuntu-latest
-  needs: build-and-publish
-  if: github.event_name == 'workflow_dispatch' && inputs.deploy_to_kubernetes == 'true'
-
-  steps:
-    - name: Show next AWS steps
-      run: |
-        echo "AWS/EKS is intentionally left for you."
-        echo "After you create the cluster and configure kubeconfig, deploy with:"
-        echo "kubectl apply -f blog-app/k8s/"
-```
-
 ## Docker Commands
 
 Build and run the full stack locally:
@@ -308,20 +289,6 @@ Check deployment status:
 kubectl get pods -n blog-app
 kubectl get svc -n blog-app
 kubectl get ingress -n blog-app
-```
-
-## AWS Section
-
-This part is intentionally left for manual setup:
-
-```text
-1. Create AWS IAM user/role.
-2. Create EKS cluster.
-3. Configure kubectl context.
-4. Install AWS Load Balancer Controller or another ingress controller.
-5. Configure domain and TLS.
-6. Apply Kubernetes manifests.
-7. Add monitoring with Prometheus and Grafana if needed.
 ```
 
 ## Environment Variables

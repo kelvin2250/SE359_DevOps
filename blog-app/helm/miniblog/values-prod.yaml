@@ -1,5 +1,5 @@
 # ============================================
-# MiniBlog - Production Environment (AWS EKS)
+# MiniBlog - Production Environment
 # ============================================
 # Dùng cho: helm install miniblog . -f values-prod.yaml
 # ============================================
@@ -25,7 +25,7 @@ frontend:
   image:
     tag: latest
     pullPolicy: Always
-  serviceType: LoadBalancer
+  serviceType: ClusterIP
   resources:
     requests:
       cpu: "100m"
@@ -35,10 +35,6 @@ frontend:
       memory: "256Mi"
 
 postgresql:
-  persistence:
-    enabled: true
-  securityContext:
-    enabled: true
   storage:
     size: 20Gi
   resources:
