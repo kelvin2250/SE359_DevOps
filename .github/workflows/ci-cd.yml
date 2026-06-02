@@ -172,18 +172,18 @@ jobs:
         run: |
           echo "=== Render with dev values ==="
           helm template test blog-app/helm/miniblog/ -f blog-app/helm/miniblog/values-dev.yaml > /dev/null
-          echo "✅ Dev template rendered successfully"
+          echo "Dev template rendered successfully"
 
       - name: Render templates (prod)
         run: |
           echo "=== Render with prod values ==="
           helm template test blog-app/helm/miniblog/ -f blog-app/helm/miniblog/values-prod.yaml > /dev/null
-          echo "✅ Prod template rendered successfully"
+          echo "Prod template rendered successfully"
 
   build-and-publish:
     name: Build, scan, and publish images
     runs-on: ubuntu-latest
-    needs: [test, filesystem-scan, hadolint, checkov, helm-lint]
+    needs: [test, filesystem-scan, hadolint, checkov, helm-lint, sonarcloud]
 
     steps:
       - name: Checkout source
