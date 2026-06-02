@@ -13,7 +13,7 @@ from schemas import PostCreate, PostUpdate, PostResponse
 
 Base.metadata.create_all(bind=engine)
 
-app = FastAPI(title="Blog API", version="1.0.0")
+app = FastAPI(title="Blog APII", version="1.0.0")
 
 app.add_middleware(
     CORSMiddleware,
