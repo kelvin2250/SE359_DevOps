@@ -16,7 +16,7 @@ backend:
   name: backend
   image:
     repository: ghcr.io/kelvin2250/se359_devops-backend
-    tag: c5e93a73c58ca6c5f964498693c34d7e8f66e895
+    tag: 0081c4c0ba2c3e459f08475eed24320598c66028
     pullPolicy: Always
   replicas: 2
   containerPort: 8000
@@ -51,7 +51,7 @@ frontend:
   runAsRoot: false
   image:
     repository: ghcr.io/kelvin2250/se359_devops-frontend
-    tag: c5e93a73c58ca6c5f964498693c34d7e8f66e895
+    tag: 0081c4c0ba2c3e459f08475eed24320598c66028
     pullPolicy: Always
   replicas: 2
   containerPort: 8080
